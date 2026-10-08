@@ -200,3 +200,22 @@ def test_multiline_traceback_stays_attached():
 
 def test_indented_line_without_history_is_not_continuation():
     assert StreamParser().parse("   indented").continuation is False
+
+
+def test_leading_byte_order_mark_is_ignored():
+    """Windows PowerShell prefixes piped text with a UTF-8 BOM."""
+    bom = "\N{ZERO WIDTH NO-BREAK SPACE}"
+    entry = parse_line(bom + "[INFO] [t= u= mod=app api= req=] hello")
+    assert entry.level == "INFO" and entry.module == "app" and entry.message == "hello"
+    assert StreamParser().parse(bom + "[ERROR] [t=a] x - y").level == "ERROR"
+
+
+def test_uvicorn_default_format():
+    entry = parse_line("INFO:     Started server process [26112]")
+    assert (entry.level, entry.logger, entry.message) == (
+        "INFO",
+        "uvicorn",
+        "Started server process [26112]",
+    )
+    assert parse_line("WARNING:  Something").level == "WARNING"
+    assert parse_line("INFO: single space is not uvicorn").level == "RAW"

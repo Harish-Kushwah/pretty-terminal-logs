@@ -45,6 +45,8 @@ _TAIL_KV_RE = re.compile(r"(?:^|[\s,;])([A-Za-z_][\w.-]*)=([^\s,;]*)[\s,;.]*$")
 _BASIC_RE = re.compile(
     r"^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):(?P<name>[^:\s]+):(?P<msg>.*)$"
 )
+# uvicorn's default: "INFO:     Started server process [26112]"
+_UVICORN_RE = re.compile(r"^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):\s{2,}(?P<msg>\S.*)$")
 # "<ts> - name - LEVEL - message"  (common logging cookbook format)
 _DASHED_RE = re.compile(
     rf"^(?P<ts>{_TS})\s+-\s+(?P<name>\S+)\s+-\s+(?P<level>[A-Za-z]+)\s+-\s+(?P<msg>.*)$"
@@ -65,6 +67,12 @@ class LogParser(Protocol):
 def strip_ansi(line: str) -> str:
     """Remove ANSI escape sequences (so already-colored input still parses)."""
     return _ANSI_RE.sub("", line) if "\x1b" in line else line
+
+
+def _clean(line: str) -> str:
+    """Drop the line ending, a leading byte-order mark (Windows PowerShell pipes add one) and
+    ANSI escapes."""
+    return strip_ansi(line.rstrip("\r\n").removeprefix("\N{ZERO WIDTH NO-BREAK SPACE}"))
 
 
 def normalize_level(value: object) -> str | None:
@@ -172,6 +180,9 @@ class PythonLogParser:
             return None
         match = _BASIC_RE.match(line) or _DASHED_RE.match(line)
         if not match:
+            uvicorn = _UVICORN_RE.match(line)
+            if uvicorn:
+                return LogEntry(level=uvicorn["level"], logger="uvicorn", message=uvicorn["msg"])
             return None
         level = normalize_level(match["level"])
         if level is None:
@@ -268,7 +279,7 @@ _AUTO = AutoParser()
 
 def parse_line(line: str) -> LogEntry:
     """Parse ``line`` with any known format; unparseable lines become a RAW entry."""
-    line = strip_ansi(line.rstrip("\r\n"))
+    line = _clean(line)
     return _AUTO.parse(line) or LogEntry(level="RAW", message=line)
 
 
@@ -283,7 +294,7 @@ class StreamParser:
         self._in_traceback = False
 
     def parse(self, line: str) -> LogEntry:
-        line = strip_ansi(line.rstrip("\r\n"))
+        line = _clean(line)
         entry = self._parser.parse(line)
         if entry is not None:
             self._seen_any = True
