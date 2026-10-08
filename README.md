@@ -88,12 +88,24 @@ pretty-log --follow application.log # like tail -f
 | `--verbose` | Include the date in timestamps |
 | `--no-short-ids` | Show full UUIDs |
 | `-f`, `--follow FILE` | Follow a file; handles partial lines, truncation/rotation and Ctrl+C |
+| `--save FILE` | Also append the input to `FILE` as plain text (see below) |
 | `--version`, `--help` | |
 
 Exit codes: `0` success (also on Ctrl+C or a closed pipe), `1` I/O error (e.g. file not found), `2` invalid configuration/usage.
 
 **Colors** are on only for an interactive terminal. They are off for pipes/redirects, `CI` environments,
 `NO_COLOR`, and `TERM=dumb`; `--color` / `--no-color` always win. With colors off the output is plain text.
+
+**Saving a shareable log file.** `--save FILE` keeps the pretty output on screen and also appends a plain copy of the
+input to `FILE` (parent folders are created, the absolute path is printed to stderr). The copy has no colors, keeps full
+UUIDs, and is not affected by `--level`/themes, so it is the version to hand to a person, a ticket, or an AI assistant.
+The file is flushed line by line, so it is usable while the process is still running. It refuses to write to a file it is
+also reading.
+
+```bash
+python app.py 2>&1 | pretty-log --save logs/session.log
+pretty-log --follow app.log --save D:/tmp/slice.log
+```
 
 **Unparseable lines are never dropped.** They are shown as `RAW`. Indented lines and tracebacks that follow a
 record are shown indented beneath it:

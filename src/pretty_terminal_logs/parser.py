@@ -69,7 +69,7 @@ def strip_ansi(line: str) -> str:
     return _ANSI_RE.sub("", line) if "\x1b" in line else line
 
 
-def _clean(line: str) -> str:
+def clean_line(line: str) -> str:
     """Drop the line ending, a leading byte-order mark (Windows PowerShell pipes add one) and
     ANSI escapes."""
     return strip_ansi(line.rstrip("\r\n").removeprefix("\N{ZERO WIDTH NO-BREAK SPACE}"))
@@ -279,7 +279,7 @@ _AUTO = AutoParser()
 
 def parse_line(line: str) -> LogEntry:
     """Parse ``line`` with any known format; unparseable lines become a RAW entry."""
-    line = _clean(line)
+    line = clean_line(line)
     return _AUTO.parse(line) or LogEntry(level="RAW", message=line)
 
 
@@ -294,7 +294,7 @@ class StreamParser:
         self._in_traceback = False
 
     def parse(self, line: str) -> LogEntry:
-        line = _clean(line)
+        line = clean_line(line)
         entry = self._parser.parse(line)
         if entry is not None:
             self._seen_any = True

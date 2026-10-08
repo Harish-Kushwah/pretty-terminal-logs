@@ -244,3 +244,51 @@ def test_follow_stops_on_request(tmp_path):
 def test_follow_missing_file_is_reported(monkeypatch):
     code, _, err = run(["--follow", "nope.log"], "", monkeypatch=monkeypatch)
     assert code == 1 and "nope.log" in err
+
+
+# -- --save ------------------------------------------------------------------------------
+
+BOM = "\N{ZERO WIDTH NO-BREAK SPACE}"
+
+
+def test_save_writes_plain_full_input_and_still_renders(tmp_path, monkeypatch):
+    target = tmp_path / "nested" / "dir" / "session.log"  # parent folders are created
+    text = BOM + "\x1b[32m" + APP_LINE.rstrip("\n") + "\x1b[0m\n\n[DEBUG] [t=a mod=m] App - quiet\n"
+    code, out, err = run(
+        ["--no-color", "--level", "INFO", "--save", str(target)], text, monkeypatch=monkeypatch
+    )
+    assert code == 0
+    assert "DashboardReportRepository" in out and "quiet" not in out  # display is filtered
+    saved = target.read_text(encoding="utf-8").splitlines()
+    assert saved == [APP_LINE.rstrip("\n"), "[DEBUG] [t=a mod=m] App - quiet"]  # nothing lost
+    assert "d8be77d2-2375-4b71-a818-b676cd5e80da" in saved[0]  # ids not shortened
+    assert str(target) in err
+
+
+def test_save_appends_between_runs(tmp_path, monkeypatch):
+    target = tmp_path / "s.log"
+    run(["--save", str(target)], "first\n", monkeypatch=monkeypatch)
+    run(["--save", str(target)], "second\n", monkeypatch=monkeypatch)
+    assert target.read_text(encoding="utf-8").splitlines() == ["first", "second"]
+
+
+def test_save_works_with_input_files(tmp_path, monkeypatch):
+    target = tmp_path / "copy.log"
+    code, _, _ = run(["--save", str(target), str(SAMPLE)], monkeypatch=monkeypatch)
+    assert code == 0
+    assert target.read_text(encoding="utf-8").splitlines()[0].startswith("[INFO] [t=d8be77d2")
+
+
+def test_save_refuses_to_overwrite_its_own_input(tmp_path, monkeypatch):
+    source = tmp_path / "app.log"
+    source.write_bytes(b"keep me\n")
+    code, _, err = run(["--save", str(source), str(source)], monkeypatch=monkeypatch)
+    assert code == 2 and "must not be the file being read" in err
+    assert source.read_bytes() == b"keep me\n"
+
+
+def test_save_unwritable_location_is_reported(tmp_path, monkeypatch):
+    blocker = tmp_path / "file.txt"
+    blocker.write_bytes(b"x")
+    code, _, err = run(["--save", str(blocker / "sub" / "out.log")], "x\n", monkeypatch=monkeypatch)
+    assert code == 1 and "cannot write" in err

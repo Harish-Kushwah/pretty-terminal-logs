@@ -15,7 +15,7 @@ from .colors import get_theme, should_use_color
 from .config import Config, parse_level, resolve_config
 from .exceptions import ConfigError
 from .formatter import EntryFormatter, pick_glyphs
-from .parser import StreamParser
+from .parser import StreamParser, clean_line
 from .renderer import Renderer, enable_windows_ansi
 
 _LEVEL_NUMBERS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
@@ -60,6 +60,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="show full UUIDs",
     )
     parser.add_argument("-f", "--follow", metavar="FILE", help="follow FILE like tail -f")
+    parser.add_argument(
+        "--save",
+        metavar="FILE",
+        help="also append the input, as plain text (no colors, full ids, unaffected by --level), "
+        "to FILE so it can be shared; parent folders are created",
+    )
     return parser
 
 
@@ -163,12 +169,16 @@ class _Pipeline:
         self.parser = StreamParser()
         self.formatter = EntryFormatter(config, theme, pick_glyphs(out))
         self.renderer = Renderer(theme, color)
+        self.save: TextIO | None = None
         self._shown = True
 
     def run(self, lines: Iterable[str]) -> None:
         for line in lines:
             if not line.strip():
                 continue
+            if self.save:
+                self.save.write(clean_line(line) + "\n")
+                self.save.flush()  # keep the file current while following a live process
             entry = self.parser.parse(line)
             if entry.continuation:
                 if not self._shown:
@@ -220,6 +230,24 @@ def main(
     if color:
         enable_windows_ansi()
 
+    save_handle: TextIO | None = None
+    if args.save:
+        save_path = os.path.abspath(os.path.expanduser(args.save))
+        inputs = [*args.files, *([args.follow] if args.follow else [])]
+        if any(os.path.abspath(path) == save_path for path in inputs):
+            print("pretty-log: error: --save must not be the file being read", file=stderr)
+            return 2
+        try:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            save_handle = open(save_path, "a", encoding="utf-8", newline="\n")  # noqa: SIM115
+        except OSError as exc:
+            print(
+                f"pretty-log: error: cannot write {save_path}: {exc.strerror or exc}", file=stderr
+            )
+            return 1
+        pipeline.save = save_handle
+        print(f"pretty-log: saving plain logs to {save_path}", file=stderr)
+
     try:
         if args.follow:
             if args.files:
@@ -249,6 +277,9 @@ def main(
             file=stderr,
         )
         return 1
+    finally:
+        if save_handle:
+            save_handle.close()
     return 0
 
 
