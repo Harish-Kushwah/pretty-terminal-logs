@@ -1,0 +1,22 @@
+# Example configuration: pretty-log --config examples/pretty-log.yaml app.log
+# Every key is optional; defaults apply for anything omitted.
+
+theme: default          # default | minimal | high-contrast
+
+level: INFO             # hide entries below this level (omit to show everything)
+
+color: auto             # auto | always | never   (true/false also accepted)
+
+display:
+  timestamp: true
+  module: true
+  logger: true
+  context: true         # context fields and extra key=value metadata
+  shorten_ids: true     # d8be77d2-2375-... -> d8be77d2...80da
+
+context:
+  fields:               # shown on one line, in this order; other metadata gets its own line
+    - trace_id
+    - user_id
+    - request_id
+    - api

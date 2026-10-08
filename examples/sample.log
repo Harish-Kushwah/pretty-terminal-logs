@@ -1,0 +1,16 @@
+[INFO] [t=d8be77d2-2375-4b71-a818-b676cd5e80da u=22e2604a-b1e1-40c5-83b8-27312f6bcb71 mod=dashboard_report api= req=] DashboardReportRepository - Fetching from v_material_with_chemical_and_msds_compliance
+[WARNING] [t=d8be77d2-2375-4b71-a818-b676cd5e80da u=22e2604a-b1e1-40c5-83b8-27312f6bcb71 mod=utils api= req=] AsyncTaskVisibilityController: extended visibility. old_id=7fe05753-441e-4176-94c5-4c216a38d2a4, new_id=7fe05753-441e-4176-94c5-4c216a38d2a4, timeout=361.2s
+[DEBUG] [t=d8be77d2-2375-4b71-a818-b676cd5e80da u=22e2604a-b1e1-40c5-83b8-27312f6bcb71 mod=dashboard_report api=/v1/dashboard req=1234] CacheLayer - Cache miss. key=dashboard:summary
+[ERROR] [t=d8be77d2-2375-4b71-a818-b676cd5e80da u=22e2604a-b1e1-40c5-83b8-27312f6bcb71 mod=database api= req=] DatabaseRepository - Failed to execute query. error=timeout
+Traceback (most recent call last):
+  File "repository.py", line 142, in run
+    result = connection.execute(query)
+TimeoutError: connection timed out
+[CRITICAL] [t=abc u=123 mod=core api= req=] Supervisor - Worker pool exhausted, shutting down service=api environment=production host=server-01
+2026-10-07 15:44:12 INFO dashboard_report Fetching data
+2026-10-07 15:44:13 [INFO] Fetching data
+2026-10-07 15:44:14,512 - myapp.db - WARNING - Slow query detected
+WARNING:root:Disk usage at 91%
+{"timestamp": "2026-10-07T15:44:12", "level": "INFO", "module": "dashboard_report", "message": "Fetching dashboard", "trace_id": "abc", "user_id": "123"}
+{"timestamp": "2026-10-07T15:44:15", "level": "error", "logger": "billing", "message": "Payment failed", "duration": "123ms", "request_id": "req-9"}
+this line is not in any known format

@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pretty-terminal-logs"
+version = "0.1.0"
+description = "Make application logs readable in the terminal: a Python logging formatter and a log-parsing CLI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["logging", "logs", "terminal", "formatter", "cli", "rich"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Logging",
+    "Typing :: Typed",
+]
+# PyYAML is a core dependency (not only `rich`) because the YAML config file is a v0.1 feature.
+dependencies = ["rich>=13", "pyyaml>=6"]
+
+[project.optional-dependencies]
+fastapi = ["fastapi>=0.100"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+    "fastapi>=0.100",
+    "httpx>=0.25",
+]
+
+[project.scripts]
+pretty-log = "pretty_terminal_logs.cli:console_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pretty_terminal_logs = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_configs = true
