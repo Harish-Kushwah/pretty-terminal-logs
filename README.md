@@ -34,7 +34,7 @@ Works with Python `logging` and with existing log files, with no changes to your
 [Python logging](#python-logging-integration) · [Context](#context-logging) ·
 [Configuration](#configuration) · [Themes](#themes) · [JSON logs](#json-logs) ·
 [FastAPI](#fastapi-integration) · [Environment variables](#environment-variables) ·
-[Development](#development-setup) · [Architecture](#architecture) ·
+[Development](#development-setup) · [Releasing](#releasing) · [Architecture](#architecture) ·
 [Known limitations](#known-limitations) · [Contributing](#contributing) · [License](#license)
 
 ## Installation
@@ -126,10 +126,46 @@ Supported input formats (auto-detected per line):
 * the app format `[LEVEL] [t=.. u=.. mod=.. api=.. req=..] Logger - message` (also `Logger: message`)
 * `2026-10-07 15:44:12 INFO dashboard_report Fetching data` and `2026-10-07 15:44:12 [INFO] Fetching data`
 * standard Python logging: `WARNING:root:message` and `<asctime> - <name> - <LEVEL> - <message>`
+* uvicorn's own lines: `INFO:     Started server process [26112]`
 * JSON, one object per line (see [JSON logs](#json-logs))
 
 Trailing `key=value` pairs at the end of a text message (`... timeout=361.2s`) are moved to separate metadata
 lines. Values cannot contain spaces. Empty fields such as `api=` and `req=` are hidden.
+
+### Running a live server through `pretty-log`
+
+Python logging writes to **stderr**, so merge it into the pipe with `2>&1` (before the `|`). Pipes are not terminals,
+so add `--color` to keep colors on. Nothing in your codebase needs to change.
+
+**bash / zsh / Git Bash:**
+
+```bash
+source venv/Scripts/activate        # Windows Git Bash; Linux/macOS: venv/bin/activate
+uvicorn run:app --port 5000 2>&1 | pretty-log --color
+uvicorn run:app --port 5000 2>&1 | pretty-log --color --save ~/logs/session.log   # plus a shareable copy
+
+# reusable shortcut for ~/.bashrc
+vai() { uvicorn run:app --port 5000 "$@" 2>&1 | pretty-log --color --save ~/logs/session.log; }
+```
+
+**Windows PowerShell 7 (`pwsh`)** works the same way as bash.
+
+**Windows PowerShell 5.1** has two problems with native commands, so put the *whole* pipeline inside `cmd`:
+
+```powershell
+cmd /c "uvicorn run:app --port 5000 2>&1 | pretty-log --color"
+```
+
+* `2>&1` in PowerShell 5.1 turns each stderr line into an error record (`NativeCommandError`, `At line:1 char:1 ...`)
+  that `pretty-log` cannot parse.
+* PowerShell 5.1 buffers everything piped into a native program until the producer exits, so a server that never exits
+  would print nothing. Running both ends inside `cmd` streams line by line.
+* PowerShell also prefixes piped text with a UTF-8 byte-order mark; `pretty-log` ignores it.
+
+```powershell
+# reusable shortcut for your PowerShell profile
+function vai { cmd /c "uvicorn run:app --port 5000 $args 2>&1 | pretty-log --color" }
+```
 
 ## Python logging integration
 
@@ -362,6 +398,28 @@ presentation layer; it does not replace structured logging or change what your a
 * Nothing is implemented for the "future" items (VS Code extension, remote streaming, Loki/Elasticsearch/OpenTelemetry,
   Docker/Kubernetes, plugins).
 * PyYAML is a core dependency in addition to `rich`, because the YAML config file is part of v0.1.
+
+## Releasing
+
+`.github/workflows/publish.yml` runs lint, type checks and tests (Python 3.10, 3.12, 3.13), builds the sdist and wheel,
+runs `twine check`, and then publishes:
+
+* **Manual run** (Actions -> *Publish Python Package* -> Run workflow): choose `testpypi` or `pypi`.
+* **Release:** publishing a GitHub release publishes to PyPI. The release tag (for example `v0.1.0`) must match
+  `version` in `pyproject.toml`, otherwise the build fails.
+
+Authentication, set up once per index (TestPyPI and PyPI are separate sites and need separate setup):
+
+* **Trusted publishing (no secrets):** on the index, *Account settings -> Publishing -> Add a new pending publisher*
+  with your GitHub owner and repository, workflow name `publish.yml`, and an empty environment.
+* **or API tokens:** add repository secrets `TEST_PYPI_API_TOKEN` / `PYPI_API_TOKEN`. If a token secret is missing, the
+  action falls back to trusted publishing and fails with `invalid-publisher` unless that is configured.
+
+Each release needs a new version number, since PyPI never accepts the same version twice. Try TestPyPI first:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple pretty-terminal-logs
+```
 
 ## Contributing
 
